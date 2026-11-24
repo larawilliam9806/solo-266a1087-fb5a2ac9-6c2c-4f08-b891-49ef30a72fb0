@@ -1,0 +1,23 @@
+services:
+  geology:
+    build: .
+    image: geology-grade-table:latest
+    container_name: geology-grade-table
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_PATH: /data/geology.db
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      GUNICORN_WORKERS: "2"
+      GUNICORN_THREADS: "4"
+    volumes:
+      - geology_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  geology_data:

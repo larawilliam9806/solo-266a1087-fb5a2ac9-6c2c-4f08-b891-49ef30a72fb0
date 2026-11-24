@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ hole.code }} - 岩芯化验底表{% endblock %}
+{% block body %}
+<h1>钻孔 {{ hole.code }} <span class="muted">{{ hole.name }}</span></h1>
+
+<div class="card">
+  <div class="row">
+    <form method="post" action="{{ url_for('upload', hole_id=hole.id) }}" enctype="multipart/form-data" style="flex:2;">
+      <label class="muted">按样号换交化验 CSV（列为：样号、起厘米、止厘米、品位ppm、复验标记；一次上传即该孔当前全套化验）</label>
+      <div class="row" style="margin-top:6px;">
+        <input type="file" name="assay_csv" accept=".csv,text/csv" required style="flex:2;">
+        <button type="submit" style="flex:0 0 auto;">上传并核算换交</button>
+      </div>
+    </form>
+    <form method="post" action="{{ url_for('do_recompute', hole_id=hole.id) }}" style="flex:1; align-self:flex-end;">
+      <button type="submit" class="secondary">用当前化验重算</button>
+    </form>
+    <div style="flex:1; align-self:flex-end;">
+      <a class="btn secondary" href="{{ url_for('supply_csv', hole_id=hole.id) }}">下载当前生效底表 CSV</a>
+    </div>
+  </div>
+  <p class="muted" style="margin-bottom:0;">
+    换交与重算在单事务内完成：化验、核查结果、底表快照一同生效；失败则整体回滚，仍可下载上次生效底表。
+    {% if version %}当前生效版本：#{{ version.seq }}（{{ version.created_at }}）{% else %}尚无生效版本。{% endif %}
+  </p>
+</div>
+
+<h2>① 统计段定义（固定深度段，单位厘米；每行“起 止”，首尾相接或相邻独立均可，不可重叠）</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('save_segments', hole_id=hole.id) }}">
+    <textarea name="segments_text" placeholder="0 200&#10;200 500&#10;500 800">{% for s in segments %}{{ s.start_cm }} {{ s.end_cm }}
+{% endfor %}</textarea>
+    <div style="margin-top:8px;"><button type="submit">保存统计段并重算</button></div>
+  </form>
+</div>
+
+<h2>② 当前生效化验（{{ assays|length }} 个样号）</h2>
+<div class="card">
+  {% if assays %}
+  <table>
+    <thead><tr><th>样号</th><th>起厘米</th><th>止厘米</th><th>段长</th><th>品位(ppm)</th><th>复验</th></tr></thead>
+    <tbody>
+      {% for a in assays %}
+      <tr>
+        <td><code>{{ a.sample_no }}</code></td>
+        <td>{{ a.start_cm }}</td><td>{{ a.end_cm }}</td><td>{{ a.length }}</td>
+        <td>{{ a.grade_ppm }}</td>
+        <td>{% if a.recheck %}<span class="tag ok">复验</span>{% else %}<span class="muted">初验</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">尚未上传化验 CSV。</p>
+  {% endif %}
+</div>
+
+<h2>③ 逐段核查结果与底表</h2>
+<div class="card">
+  {% if results %}
+  <table>
+    <thead>
+      <tr>
+        <th>段号</th><th>深度段(cm)</th><th>状态</th><th>复验覆盖(cm)</th>
+        <th>精确品位(ppm)</th><th>样号集 A</th><th>样号集 B / 分歧品位</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td>{{ r.seq }}</td>
+        <td>[{{ r.start_cm }}, {{ r.end_cm }})</td>
+        <td>
+          {% if r.status == 'ok' %}<span class="tag ok">供数</span>
+          {% elif r.status == 'diverged' %}<span class="tag diverged">品位分歧</span>
+          {% else %}<span class="tag incomplete">待补样</span>{% endif %}
+        </td>
+        <td>{{ r.recheck_cover_cm }} / {{ r.end_cm - r.start_cm }}</td>
+        <td>
+          {% if r.status == 'ok' %}
+            <strong>{{ r.grade_num }} / {{ r.grade_den }}</strong>
+            <div class="muted">≈ {{ (r.grade_num, r.grade_den)|approx6 }}</div>
+          {% elif r.status == 'diverged' %}
+            <span class="muted">见右侧两套</span>
+          {% else %}
+            <span class="muted">已铺 {{ r.covered_cm }} / {{ r.end_cm - r.start_cm }} cm</span>
+          {% endif %}
+        </td>
+        <td class="samples">
+          {% if r.samples_min %}{{ r.samples_min|join(' ') }}
+            {% if r.status == 'diverged' %}<div class="muted">品位A：{{ r.grade_num_min }}/{{ r.grade_den }}</div>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td class="samples">
+          {% if r.status == 'diverged' %}
+            {{ r.samples_max|join(' ') }}
+            <div class="muted">品位B：{{ r.grade_num_max }}/{{ r.grade_den }}</div>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">尚无核查结果：请先保存统计段并上传化验。</p>
+  {% endif %}
+</div>
+
+<h2>④ 换交版本记录</h2>
+<div class="card">
+  {% if versions %}
+  <table>
+    <thead><tr><th>版本</th><th>状态</th><th>新增/消失/变更样号</th><th>说明</th><th>生成时间</th></tr></thead>
+    <tbody>
+      {% for v in versions %}
+      <tr>
+        <td>#{{ v.seq }}{% if v.id == hole.effective_version_id %} ★{% endif %}</td>
+        <td>{{ v.status }}</td>
+        <td>{{ v.added_count }} / {{ v.removed_count }} / {{ v.changed_count }}</td>
+        <td>{{ v.change_note }}</td>
+        <td>{{ v.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">暂无版本。</p>
+  {% endif %}
+</div>
+{% endblock %}

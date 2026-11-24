@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}岩芯化验底表{% endblock %}</title>
+  <style>
+    :root { --line:#d9dde3; --bg:#f5f7fa; --ok:#1a7f37; --warn:#b26a00; --err:#c0392b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: "Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:#1f2933; }
+    header { background:#1f3a5f; color:#fff; padding:14px 24px; }
+    header a { color:#cfe0ff; text-decoration:none; margin-right:16px; }
+    main { max-width:1180px; margin:24px auto; padding:0 20px; }
+    h1 { font-size:20px; margin:0 0 16px; }
+    h2 { font-size:16px; margin:26px 0 10px; border-left:4px solid #1f3a5f; padding-left:8px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:18px; margin-bottom:18px; }
+    table { border-collapse:collapse; width:100%; font-size:13px; }
+    th, td { border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top; }
+    th { background:#eef2f7; }
+    .flash { padding:10px 14px; border-radius:6px; margin-bottom:12px; font-size:14px; }
+    .flash.ok { background:#e6f6ea; color:var(--ok); border:1px solid #b7e0c1; }
+    .flash.err { background:#fdecea; color:var(--err); border:1px solid #f5c6c0; }
+    input[type=text], textarea { width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; font-size:14px; }
+    textarea { font-family:ui-monospace,Menlo,Consolas,monospace; min-height:150px; }
+    button, .btn { display:inline-block; padding:8px 16px; border:0; border-radius:6px;
+            background:#1f3a5f; color:#fff; cursor:pointer; font-size:14px; text-decoration:none; }
+    button.secondary, .btn.secondary { background:#5a6b80; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; white-space:nowrap; }
+    .tag.ok { background:#e6f6ea; color:var(--ok); }
+    .tag.diverged { background:#fff4e0; color:var(--warn); }
+    .tag.incomplete { background:#fdecea; color:var(--err); }
+    .muted { color:#6b7785; font-size:12px; }
+    code { background:#f0f2f5; padding:1px 5px; border-radius:4px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex:1; min-width:180px; }
+    .samples { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; word-break:break-all; }
+  </style>
+</head>
+<body>
+<header>
+  <strong>岩芯化验供数底表系统</strong>
+  <a href="{{ url_for('index') }}">钻孔列表</a>
+  <a href="{{ url_for('template_csv') }}">下载化验 CSV 模板</a>
+</header>
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</main>
+</body>
+</html>

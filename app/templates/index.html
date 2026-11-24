@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}钻孔列表 - 岩芯化验底表{% endblock %}
+{% block body %}
+<h1>钻孔列表</h1>
+
+<div class="card">
+  <form method="post" action="{{ url_for('add_hole') }}">
+    <div class="row">
+      <div>
+        <label class="muted">孔号（唯一）</label>
+        <input type="text" name="code" required placeholder="例如 ZK001">
+      </div>
+      <div>
+        <label class="muted">孔名 / 备注</label>
+        <input type="text" name="name" placeholder="可选">
+      </div>
+      <div style="flex:0 0 auto; align-self:flex-end;">
+        <button type="submit">新建钻孔</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  {% if holes %}
+  <table>
+    <thead>
+      <tr><th>孔号</th><th>孔名</th><th>统计段数</th><th>生效化验样数</th><th>操作</th></tr>
+    </thead>
+    <tbody>
+      {% for h in holes %}
+      <tr>
+        <td><strong>{{ h.code }}</strong></td>
+        <td>{{ h.name }}</td>
+        <td>{{ h.segment_count }}</td>
+        <td>{{ h.assay_count if h.effective_version_id else '—' }}</td>
+        <td>
+          <a class="btn" href="{{ url_for('hole_detail', hole_id=h.id) }}">进入</a>
+          <a class="btn secondary" href="{{ url_for('supply_csv', hole_id=h.id) }}">下载底表 CSV</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">还没有钻孔，请先新建。</p>
+  {% endif %}
+</div>
+{% endblock %}
