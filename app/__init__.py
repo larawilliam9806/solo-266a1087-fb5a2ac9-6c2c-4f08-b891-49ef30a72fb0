@@ -103,8 +103,16 @@ def create_app(config: dict | None = None) -> Flask:
                 segments.append((s, e))
             if not segments:
                 raise ServiceError("至少需要一个统计段")
-            replace_segments(hole_id, segments)
-            flash(f"已保存 {len(segments)} 个统计段", "ok")
+            # 段集写入与重算在同一事务内原子完成：失败则旧分段、旧底表均保留。
+            outcome = replace_segments(hole_id, segments)
+            if outcome["version_id"] is None:
+                flash(f"已保存 {len(segments)} 个统计段（尚无化验，未生成底表）", "ok")
+            else:
+                flash(
+                    f"已保存 {len(segments)} 个统计段，并用当前化验核算生成新版本"
+                    f" #{outcome['version_id']}，新分段与新底表一同生效",
+                    "ok",
+                )
         except (ServiceError, ValueError) as exc:
             flash(f"统计段保存失败：{exc}", "err")
         return redirect(url_for("hole_detail", hole_id=hole_id))

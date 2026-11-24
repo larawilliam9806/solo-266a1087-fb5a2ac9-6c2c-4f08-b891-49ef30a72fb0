@@ -20,7 +20,8 @@
     </div>
   </div>
   <p class="muted" style="margin-bottom:0;">
-    换交与重算在单事务内完成：化验、核查结果、底表快照一同生效；失败则整体回滚，仍可下载上次生效底表。
+    换交、重算与改段都在单事务内完成：统计段集、化验、核查结果、底表快照一同生效；失败则整体回滚，仍可下载上次生效底表，历史各版核查明细永久保留。
+    写操作串行互斥：改段重算与换交交错时，后到者排队等待，先提交的化验不会被旧重算覆盖。
     {% if version %}当前生效版本：#{{ version.seq }}（{{ version.created_at }}）{% else %}尚无生效版本。{% endif %}
   </p>
 </div>
@@ -110,12 +111,13 @@
 <div class="card">
   {% if versions %}
   <table>
-    <thead><tr><th>版本</th><th>状态</th><th>新增/消失/变更样号</th><th>说明</th><th>生成时间</th></tr></thead>
+    <thead><tr><th>版本</th><th>状态</th><th>段集</th><th>新增/消失/变更样号</th><th>说明</th><th>生成时间</th></tr></thead>
     <tbody>
       {% for v in versions %}
       <tr>
         <td>#{{ v.seq }}{% if v.id == hole.effective_version_id %} ★{% endif %}</td>
         <td>{{ v.status }}</td>
+        <td>段集 #{{ v.segment_set_id }}{% if v.segment_set_id == hole.effective_segment_set_id %}（当前）{% endif %}</td>
         <td>{{ v.added_count }} / {{ v.removed_count }} / {{ v.changed_count }}</td>
         <td>{{ v.change_note }}</td>
         <td>{{ v.created_at }}</td>
